@@ -703,19 +703,27 @@ def plot_comparison_bar():
     labels = []
     avg_scores_2d = []
     avg_scores_1d = []
-    std_scores_2d = []
-    std_scores_1d = []
-    
-    # Calculate average and std scores for each label if population threshold is met
+    ci_scores_2d = []
+    ci_scores_1d = []
+
+    # Calculate average and 95% CI for each label if population threshold is met
     for label in relevance_scores.keys():
         if len(relevance_scores[label]) >= population and len(relevance_scores1[label]) >= population:
             labels.append(label_map[label])
 
+            # Mean
             avg_scores_2d.append(np.mean(relevance_scores[label]))
             avg_scores_1d.append(np.mean(relevance_scores1[label]))
 
-            std_scores_2d.append(np.std(relevance_scores[label]))
-            std_scores_1d.append(np.std(relevance_scores1[label]))
+            # Sample std
+            std_2d = np.std(relevance_scores[label], ddof=1)
+            std_1d = np.std(relevance_scores1[label], ddof=1)
+
+            # 95% confidence interval
+            n_2d = len(relevance_scores[label])
+            n_1d = len(relevance_scores1[label])
+            ci_scores_2d.append(1.96 * std_2d / np.sqrt(n_2d))
+            ci_scores_1d.append(1.96 * std_1d / np.sqrt(n_1d))
 
     # Dynamically adjust spacing and bar width
     num_labels = len(labels)
@@ -734,7 +742,7 @@ def plot_comparison_bar():
         color='#C44E52',
         alpha=0.7,
         edgecolor='black',
-        yerr=std_scores_2d,
+        yerr=std_2d,
         error_kw=dict(
             ecolor='#2F2F2F',
             elinewidth=2,
@@ -748,10 +756,10 @@ def plot_comparison_bar():
         avg_scores_1d,
         width,
         label='1D Walk',
-        color= '#4C9A8A',
+        color='#4C9A8A',
         alpha=0.7,
         edgecolor='black',
-        yerr=std_scores_1d,
+        yerr=std_1d,
         error_kw=dict(
             ecolor='#2F2F2F',
             elinewidth=2,
@@ -770,8 +778,8 @@ def plot_comparison_bar():
     plt.tight_layout()
 
     # Save
-    plt.savefig('Guest/random-walks/Guest_scores_bar_plot.png', dpi=800)
-    plt.savefig('Guest/random-walks/Guest_scores_bar_plot.pdf', format='pdf', dpi=1200)
+    plt.savefig('Guest/random-walks/Guest_scores_bar_plot_std.png', dpi=800)
+    plt.savefig('Guest/random-walks/Guest_scores_bar_plot_std.pdf', format='pdf', dpi=1200)
 
     # Display
     plt.show(block=False)

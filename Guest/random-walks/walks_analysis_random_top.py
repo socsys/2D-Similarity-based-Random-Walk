@@ -23,7 +23,7 @@ walk_length=10
 population=400
 plot_dist_after=100
 plot_early=False
-plot_end=True
+plot_end=False
 save_data=True
 
 label_map={0:'Non-Hate',1:'Hate'}
@@ -341,8 +341,6 @@ def random_L_utterances(sentences, data, node_id, L):
 
     print('generating baseline: random L utterances (with mandatory parent)')
 
-    to_be_added=L
-
     # Clean NaNs
     for n_id in data['node']:
         if pd.isna(data['node'][n_id]['text']):
@@ -351,16 +349,14 @@ def random_L_utterances(sentences, data, node_id, L):
     label = data['node'][node_id]['label']
 
     ##########################################
-    # 1) Insert original node + mandatory parent
+    # 1) Insert original node
     ##########################################
     parent_edge = data['edge'][node_id]
     if len(parent_edge.keys()) > 0:
         parent_id = list(parent_edge.keys())[0]
-        parent_text = data['node'][parent_id]['text']
         sentences[0] = parent_id
     else:
         parent_id = ""
-        parent_text = ""
         sentences[0] = ""
 
     sentences[1] = node_id
@@ -370,29 +366,17 @@ def random_L_utterances(sentences, data, node_id, L):
     extended_edges = []
 
     idx = 3
-    to_be_added-=1
 
-    # Add parent node if it exists
-    if parent_id != "":
-        sentences[idx] = list(data['edge'][parent_id].keys())[0] if len(data['edge'][parent_id]) > 0 else ""
-        sentences[idx+1] = parent_id
-        sentences[idx+2] = parent_text
-        chosen_node_ids.append(parent_id)
-        extended_edges.append([node_id, parent_id])
-        idx += 3
-        to_be_added-=1
 
     ##########################################
-    # 2) Random L nodes excluding main node + parent
+    # 2) Random L nodes excluding target node
     ##########################################
     all_nodes = list(data['node'].keys())
     if node_id in all_nodes:
         all_nodes.remove(node_id)
-    if parent_id in all_nodes:
-        all_nodes.remove(parent_id)
 
     print("all nodes size:", len(all_nodes))
-    picked = random.sample(all_nodes, min(to_be_added, len(all_nodes)))
+    picked = random.sample(all_nodes, min(L-1, len(all_nodes)))
 
     for nid in picked:
         parent = list(data['edge'][nid].keys())[0] if len(data['edge'][nid]) > 0 else ""
@@ -403,9 +387,8 @@ def random_L_utterances(sentences, data, node_id, L):
         sentences[idx+2] = text
         chosen_node_ids.append(nid)
         idx += 3
-        to_be_added-=1
 
-        print("to be added randomly:", to_be_added)
+    print("added:",idx/3, "nodes" )
 
     return sentences, label, chosen_node_ids, extended_edges, 0
 
@@ -417,8 +400,6 @@ def top_L_relevant_utterances(sentences, data, node_id, L):
 
     print('generating baseline: top L relevant utterances (with mandatory parent)')
 
-    to_be_added=L
-
     # Clean NaNs
     for n_id in data['node']:
         if pd.isna(data['node'][n_id]['text']):
@@ -428,16 +409,14 @@ def top_L_relevant_utterances(sentences, data, node_id, L):
     original_text = data['node'][node_id]['text']
 
     ##########################################
-    # 1) Insert original node + mandatory parent
+    # 1) Insert original node
     ##########################################
     parent_edge = data['edge'][node_id]
     if len(parent_edge.keys()) > 0:
         parent_id = list(parent_edge.keys())[0]
-        parent_text = data['node'][parent_id]['text']
         sentences[0] = parent_id
     else:
         parent_id = ""
-        parent_text = ""
         sentences[0] = ""
 
     sentences[1] = node_id
@@ -446,24 +425,15 @@ def top_L_relevant_utterances(sentences, data, node_id, L):
     chosen_node_ids = [node_id]
     extended_edges = []
     idx = 3
-    to_be_added-=1
 
-    # Add parent node if exists
-    if parent_id != "":
-        sentences[idx] = list(data['edge'][parent_id].keys())[0] if len(data['edge'][parent_id]) > 0 else ""
-        sentences[idx+1] = parent_id
-        sentences[idx+2] = parent_text
-        chosen_node_ids.append(parent_id)
-        extended_edges.append([node_id, parent_id])
-        idx += 3
-        to_be_added-=1
 
     ##########################################
     # 2) Compute relevance ranking for all other nodes
     ##########################################
     candidates = []
+    print("all nodes size:", len(data['node'])-1)
     for nid in data['node']:
-        if nid == node_id or nid == parent_id:
+        if nid == node_id:
             continue
         text = data['node'][nid]['text']
         if text != "":
@@ -482,18 +452,13 @@ def top_L_relevant_utterances(sentences, data, node_id, L):
         corpus_index = h['corpus_id']
         h['node_id'] = ids[corpus_index]
         h['text'] = texts[corpus_index]     
-
-    # Pretty print all results
-    # for h in hits:
-    #     print("target node text:", sentences[2])
-    #     print(f"ID: {h['node_id']}\nScore: {h['score']}\nText: {h['text']}\n---")
         
 
     # Sort by score
     hits_sorted = sorted(hits, key=lambda x: x['score'], reverse=True)
 
     # Take top L
-    top_hits = hits_sorted[:to_be_added]
+    top_hits = hits_sorted[:L-1]
 
     scores = []
 
@@ -510,8 +475,8 @@ def top_L_relevant_utterances(sentences, data, node_id, L):
         chosen_node_ids.append(nid)
         scores.append(score)
         idx += 3
-        to_be_added-=1
-        print("to be added:", to_be_added)
+
+    print("added:",idx/3, "nodes" )
 
     avg_score = sum(scores)/len(scores) if scores else 0
 
