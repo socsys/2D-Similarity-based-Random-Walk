@@ -1,4 +1,4 @@
-# 2D Similarity-based Random Walk for Improved Understanding of Online Conversations
+# Modeling discourse structure with 2D Similarity-based Random Walks for improved understanding of online conversations
 
 **Zaid Almahmoud**, Vibhor Agarwal, Rana Mahmoud, and Nishanth Sastry, "Modeling discourse structure with 2D Similarity-based Random Walks for improved understanding of online conversations", 2025.
 
