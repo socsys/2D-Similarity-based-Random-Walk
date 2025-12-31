@@ -1,0 +1,2 @@
+Paired t-test Depth 1D vs 2D: t=-8.607, p=9.328e-18
+Paired t-test Branching 1D vs 2D: t=-30.957, p=3.709e-196
