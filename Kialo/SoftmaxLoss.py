@@ -74,7 +74,7 @@ class SoftmaxLoss(nn.Module):
         if self.concatenation_uv_rep:
             rep_w = self.model_uv(sentence_features.pop())['sentence_embedding']
 
-        reps = [self.model.module[0](sentence_feature)['token_embeddings'] for sentence_feature in sentence_features]
+        reps = [self.model[0](sentence_feature)['token_embeddings'] for sentence_feature in sentence_features]
 
         rep_t = ''
         if self.concatenation_thesis_rep:
@@ -102,7 +102,7 @@ class SoftmaxLoss(nn.Module):
 
         features = torch.cat(vectors_concat, 1)
 
-        output = self.model.module[2](features)
+        output = self.model[2](features)
 
         if labels is not None:
             loss = self.loss_fct(output, labels.view(-1))
@@ -117,21 +117,21 @@ class SoftmaxLoss(nn.Module):
         return output_vector
 
     def multihead_attention(self, reps):
-        v = self.model.module[6](reps[0])
+        v = self.model[6](reps[0])
         v = self.mean_pooling(v)
         u = []
-        for i in range(1, 10):
-            Q = self.model.module[3](reps[1])
-            K = self.model.module[4](reps[i])
-            V = self.model.module[5](reps[i])
-            attn_output = self.model.module[1](Q, K, V)[0]
+        for i in range(1, 3):
+            Q = self.model[3](reps[1])
+            K = self.model[4](reps[i])
+            V = self.model[5](reps[i])
+            attn_output = self.model[1](Q, K, V)[0]
             u.append(self.mean_pooling(attn_output))
         u = torch.mean(torch.stack(u), dim=0)
         return u, v
 
     def cosine_sim_aggregate(self, reps):
         v = reps[0]
-        for i in range(2, 10):
+        for i in range(2, 3):
             weight = cosine_similarity(Tensor.cpu(reps[1]).detach().numpy(), Tensor.cpu(reps[i]).detach().numpy())
             reps[i] = torch.mm(torch.from_numpy(weight).to('cuda:0'), reps[i])
         u = torch.sum(torch.stack(reps[1:]), dim=0)

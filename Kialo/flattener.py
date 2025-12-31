@@ -4,10 +4,10 @@ import csv
 import sys
 
 # Load the CSV
-df = pd.read_csv("two_GK_test_random_walk.csv")
+df = pd.read_csv("top_GK_test_random_walk.csv")
 
 # You can adjust these depending on how many comment triples (parent, node, comment) you have
-NUM_COMMENTS = 10  # adjust based on your structure
+NUM_COMMENTS = 3  # adjust based on your structure
 COMMENT_TRIPLE_SIZE = 3
 LABEL_INDEX = NUM_COMMENTS * COMMENT_TRIPLE_SIZE
 
@@ -77,8 +77,8 @@ for idx, row in df.iterrows():
         for node in G.nodes:
             dfs(node)
 
-    if len(linearized_comments)<10:
-        for j in range(len(linearized_comments)+1,11):
+    if len(linearized_comments)<3:
+        for j in range(len(linearized_comments)+1,4):
             linearized_comments.append('')
 
     # The first comment in the row (the one to classify)
@@ -89,8 +89,8 @@ for idx, row in df.iterrows():
     output_rows.append([first_comment, second_comment]+ linearized_comments + [label])
 
 
-with open("two_LK_test_random_walk.csv", "w", newline='', encoding='utf-8') as f:
+with open("top_LK_test_random_walk.csv", "w", newline='', encoding='utf-8') as f:
     writer = csv.writer(f)
-    writer.writerow(['Utterance','Replying to']+ ['Context_'+str(i) for i in range(1,11)]+ ["Label"])
+    writer.writerow(['Utterance','Replying to']+ ['Context_'+str(i) for i in range(1,4)]+ ["Label"])
     for row in output_rows:
         writer.writerow(row)

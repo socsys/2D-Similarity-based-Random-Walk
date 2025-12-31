@@ -87,12 +87,6 @@ class SoftmaxLoss(nn.Module):
         if self.concatenation_sent_rep:
             vectors_concat.append(rep_a)
 
-        if self.concatenation_sent_difference:
-            vectors_concat.append(torch.abs(rep_a - rep_b))
-
-        if self.concatenation_sent_multiplication:
-            vectors_concat.append(rep_a * rep_b)
-
         if self.concatenation_thesis_rep:
             vectors_concat.append(rep_t)
 

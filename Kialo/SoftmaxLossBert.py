@@ -76,12 +76,12 @@ class SoftmaxLossBert(nn.Module):
             u = self.model_uv(sentence_features.pop())['sentence_embedding']
             
 
-        v = [self.model.module[0](sentence_feature)['token_embeddings'] for sentence_feature in sentence_features]
+        v = [self.model[0](sentence_feature)['token_embeddings'] for sentence_feature in sentence_features]
         v = torch.mean(v[0], dim=1)
 
         features = torch.cat([u,v, torch.abs(u-v),w], 1)
 
-        output = self.model.module[2](features)
+        output = self.model[2](features)
 
         if labels is not None:
             loss = self.loss_fct(output, labels.view(-1))
