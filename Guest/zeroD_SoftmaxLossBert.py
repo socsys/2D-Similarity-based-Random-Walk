@@ -74,7 +74,7 @@ class SoftmaxLossBert(nn.Module):
 
         features = torch.cat([u], 1)
 
-        output = self.model[2](features)
+        output = self.model.module[2](features)
 
         if labels is not None:
             loss = self.loss_fct(output, labels.view(-1))

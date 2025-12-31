@@ -26,11 +26,56 @@ def set_random_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-fixed_seed = 123
-set_random_seed(fixed_seed)
 
-for e in range(3):
+fixed_seed = 39
+set_random_seed(fixed_seed)
+g = torch.Generator()
+g.manual_seed(fixed_seed)
+
+# Load and combine datasets
+df_train = pd.read_csv('one_G_train_random_walk.csv').fillna('')
+df_test  = pd.read_csv('one_G_test_random_walk.csv').fillna('')
+
+full_df = pd.concat([df_train, df_test], ignore_index=True)
+
+# Fix order for reproducibility
+full_df = full_df.reset_index(drop=True)
+
+num_folds = 3
+test_ratio = 0.2
+N = len(full_df)
+fold_size = int(test_ratio * N)
+
+
+for e in range(num_folds):
     print(f'Experiment {e}:')
+
+    start = (e+2) * fold_size
+    end = start + fold_size
+
+    test_df = full_df.iloc[start:end]
+    train_df = pd.concat(
+        [full_df.iloc[:start], full_df.iloc[end:]],
+        axis=0
+    )
+
+    train_samples = []
+    test_samples = []
+
+    for i in range(len(train_df)):
+        texts = [train_df.iloc[i][f'sent{j}'] for j in range(1, 2)]
+        train_samples.append(
+            InputExample(texts=texts, label=int(train_df.iloc[i]['label']))
+        )
+
+    dev_samples = train_samples[math.ceil(0.8 * len(train_samples)) : ]
+
+    for i in range(len(test_df)):
+        texts = [test_df.iloc[i][f'sent{j}'] for j in range(1, 2)]
+        test_samples.append(
+            InputExample(texts=texts, label=int(test_df.iloc[i]['label']))
+        )
+
 
     model_name = sys.argv[1] if len(sys.argv) > 1 else 'distilroberta-base'
 
@@ -58,32 +103,13 @@ for e in range(3):
     model = SentenceTransformer(modules=[word_embedding_model, multihead_attn, dense_model, linear_proj_q, linear_proj_k, linear_proj_v, linear_proj_node])
     model_uv = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
-    train_samples = []
-    test_samples = []
 
-    trainset = pd.read_csv('one_G_train_random_walk.csv')
-    trainset = trainset.fillna('')
-
-    for i in range(len(trainset)):
-        texts=[trainset.iloc[i]['sent' + str(1)] ] # appending first only
-        train_samples.append(InputExample(texts=texts, label=int(trainset.iloc[i]['label'])))
-
-    dev_samples = train_samples[math.ceil(0.8 * len(train_samples)) : ]
-    train_samples = train_samples[ : math.ceil(0.8 * len(train_samples)) ]
-
-    testset = pd.read_csv('one_G_test_random_walk.csv')
-    testset = testset.fillna('')
-
-    for i in range(len(testset)):
-        texts=[testset.iloc[i]['sent' + str(1)] ] # appending first only
-        test_samples.append(InputExample(texts=texts, label=int(testset.iloc[i]['label'])))
-
-    train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=train_batch_size)
-    dev_dataloader = DataLoader(dev_samples, shuffle=True, batch_size=train_batch_size)
-    test_dataloader = DataLoader(test_samples, shuffle=True, batch_size=train_batch_size)
+    train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=train_batch_size, generator=g)
+    dev_dataloader = DataLoader(dev_samples, shuffle=True, batch_size=train_batch_size, generator=g)
+    test_dataloader = DataLoader(test_samples, shuffle=True, batch_size=train_batch_size, generator=g)
 
     for i in range(1):
-        train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=train_batch_size)
+        train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=train_batch_size, generator=g)
         train_loss = SoftmaxLossBert(model=model, model_uv=model_uv, multihead_attn=multihead_attn, linear_proj_q=linear_proj_q,
             linear_proj_k=linear_proj_k, linear_proj_v=linear_proj_v, linear_proj_node=linear_proj_node,
             sentence_embedding_dimension=pooling_model.get_sentence_embedding_dimension(),

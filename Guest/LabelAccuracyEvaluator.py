@@ -39,8 +39,23 @@ class LabelAccuracyEvaluator():
             name = "_"+name
 
         self.write_csv = write_csv
-        self.csv_file = "0D_accuracy_evaluation"+name+"_results.csv"
-        self.csv_headers = ["epoch", "steps", "accuracy", "f1_score", "precision", "recall", "pr_auc"]
+        self.csv_file = "random_accuracy_evaluation"+name+"_results.csv"
+        self.csv_headers = [
+                            "epoch",
+                            "steps",
+                            "accuracy",
+                            "macro_f1",
+
+                            "precision_class_0_non_misogynistic",
+                            "precision_class_1_misogynistic",
+
+                            "recall_class_0_non_misogynistic",
+                            "recall_class_1_misogynistic",
+
+                            "f1_class_0_non_misogynistic",
+                            "f1_class_1_misogynistic",
+
+                            "pr_auc"]
 
     def __call__(self, model, output_path: str = None, epoch: int = -1, steps: int = -1) -> float:
         model.eval()
@@ -74,35 +89,27 @@ class LabelAccuracyEvaluator():
             pred_labels.extend(list(torch.argmax(prediction, dim=1).cpu()))
             pos_probs.extend(list(prediction[:, 1].cpu()))
         accuracy = correct/total
-        f1 = f1_score(true_labels, pred_labels, average='macro')
-        precision = precision_score(true_labels, pred_labels, average='macro')
-        recall = recall_score(true_labels, pred_labels, average='macro')
-        acc = accuracy_score(true_labels, pred_labels)
+        macro_f1 = f1_score(true_labels, pred_labels, average='macro')
+        macro_precision = precision_score(true_labels, pred_labels, average='macro', zero_division=0)
+        macro_recall = recall_score(true_labels, pred_labels, average='macro', zero_division=0)
+
+        # Class-wise metrics
+        class_precision = precision_score(true_labels, pred_labels, average=None, zero_division=0)
+        class_recall = recall_score(true_labels, pred_labels, average=None, zero_division=0)
+        class_f1 = f1_score(true_labels, pred_labels, average=None, zero_division=0)
+
         P, R, _ = precision_recall_curve(true_labels, pos_probs)
         auc_score = auc(R, P)
-        # if self.csv_file == 'accuracy_evaluation_sts-test_results.csv':
-        #     self.plot_pr_curve(true_labels, pos_probs)
 
         print('Accuracy:',accuracy)
-        print('Precision:', precision)
-        print('Recall:', recall)
+        print('Macro F1:', macro_f1)
+        print('Class Precision:', class_precision)
+        print('Class Recall:', class_recall)
+        print('Class F1:', class_f1)
         print('PR AUC:',auc_score)
-        print('Macro F1:',f1)
         
 
         logger.info("Accuracy: {:.4f} ({}/{})\n".format(accuracy, correct, total))
-
-        # if output_path is not None and self.write_csv:
-        #     csv_path = os.path.join(output_path, self.csv_file)
-        #     if not os.path.isfile(csv_path):
-        #         with open(csv_path, newline='', mode="w", encoding="utf-8") as f:
-        #             writer = csv.writer(f)
-        #             writer.writerow(self.csv_headers)
-        #             writer.writerow([epoch, steps, accuracy, f1, precision, recall, auc_score])
-        #     else:
-        #         with open(csv_path, newline='', mode="a", encoding="utf-8") as f:
-        #             writer = csv.writer(f)
-        #             writer.writerow([epoch, steps, accuracy, f1, precision, recall, auc_score])
 
         if output_path is not None and self.write_csv:
             csv_path = os.path.join(output_path, self.csv_file)
@@ -112,7 +119,7 @@ class LabelAccuracyEvaluator():
                 with open(csv_path, mode="w", newline='', encoding="utf-8") as f:
                     writer = csv.writer(f)
                     writer.writerow(self.csv_headers)  # Write header
-                    writer.writerow([epoch, steps, accuracy, f1, precision, recall, auc_score])
+                    writer.writerow([epoch, steps, accuracy, macro_f1, class_precision[0], class_precision[1], class_recall[0], class_recall[1], class_f1[0], class_f1[1], auc_score])
             else:
                 # Read existing data to count rows (excluding header)
                 with open(csv_path, newline='', encoding="utf-8") as f:
@@ -121,7 +128,7 @@ class LabelAccuracyEvaluator():
                     data_rows = reader[1:]  # Exclude header
 
                 # Append new row
-                new_row = [epoch, steps, accuracy, f1, precision, recall, auc_score]
+                new_row = [epoch, steps, accuracy, macro_f1, class_precision[0], class_precision[1], class_recall[0], class_recall[1], class_f1[0], class_f1[1], auc_score]
                 data_rows.append(new_row)
 
                 # Write the new row
@@ -130,20 +137,23 @@ class LabelAccuracyEvaluator():
                     writer.writerow(new_row)
 
                 # If exactly 3 data rows exist (excluding header), compute the mean and append it
-                if len(data_rows) == 3:
-                    mean_values = np.mean(np.array(data_rows, dtype=float), axis=0)
-                    mean_row = ["Mean"] + list(mean_values[1:])  # Keep "Mean" in place of the first column
+                NUM_FOLDS = 3
+
+                if len(data_rows) == NUM_FOLDS:
+                    values = np.array(data_rows, dtype=float)
+
+                    mean_values = np.mean(values, axis=0)
+                    var_values  = np.var(values, axis=0)
+
+                    mean_row = ["Mean"] + list(mean_values[1:])
+                    var_row  = ["Variance"] + list(var_values[1:])
+
                     with open(csv_path, mode="a", newline='', encoding="utf-8") as f:
                         writer = csv.writer(f)
                         writer.writerow(mean_row)
+                        writer.writerow(var_row)
+
+
         return accuracy
 
-    def plot_pr_curve(self, test_y, model_probs):
-        no_skill = test_y.count(1) / len(test_y)
-        pyplot.plot([0, 1], [no_skill, no_skill], linestyle='--', label='No Skill')
-        precision, recall, _ = precision_recall_curve(test_y, model_probs)
-        pyplot.plot(recall, precision, marker='.', label='GraphNLI')
-        pyplot.xlabel('Recall')
-        pyplot.ylabel('Precision')
-        pyplot.legend()
-        pyplot.savefig('pr_curve_parent_only.png')
+
