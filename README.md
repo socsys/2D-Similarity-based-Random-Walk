@@ -9,8 +9,13 @@ The proliferation of social media has made automated classification of online di
 The paper PDF is available [here]().
 
 ## Citation
-
 ```
-
+@article{almahmoud2026modeling,
+  title={Modeling discourse structure with 2D similarity-based random walks for improved understanding of online conversations},
+  author={Almahmoud, Zaid and Agarwal, Vibhor and Mahmoud, Rana and Sastry, Nishanth},
+  journal={Scientific Reports},
+  year={2026},
+  publisher={Nature Publishing Group UK London}
+}
 ```
 ****
